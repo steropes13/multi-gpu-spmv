@@ -75,10 +75,6 @@ int main(int argc, char ** argv) {
     int bufferMtxHeaders[3]; 
     int bufferHeaderSize = (int) sizeof(bufferMtxHeaders)/sizeof(int);
 
-    std::vector<int> I; 
-    std::vector<int> J; 
-    std::vector<DATATYPE> valVect; 
-
 
 
 
@@ -136,17 +132,143 @@ int main(int argc, char ** argv) {
             MPI_COMM_WORLD
     );
 
-    if (currentRank != 0) {
-        M = bufferMtxHeaders[0];
-        N = bufferMtxHeaders[1];
-        nnz = bufferMtxHeaders[2];
-        printf("[MPI process %d] I am a broadcast receiver. Values : (%d, %d, %d) \n", currentRank,M,N,nnz);
+    std::vector<int> sendCounts(commSize, 0); //vector of sice comSize filled with 0 
+    std::vector<int> displs(commSize, 0);
+    std::vector<int> I; 
+    std::vector<int> J; 
+    std::vector<DATATYPE> valVect; 
+
+
+
+    M = bufferMtxHeaders[0];
+    N = bufferMtxHeaders[1];
+    nnz = bufferMtxHeaders[2];
+    printf("[MPI process %d] I am a broadcast receiver. Values : (%d, %d, %d) \n", currentRank,M,N,nnz);
+    //rank 0 prepares the sorted datas per rank owner 
+    if (currentRank == 0) {
+        //count nnz per rank 
+        for (int k = 0;k<nnz;k++) {
+            sendCounts[ROLE(rows_array[k],commSize)]++; 
+        }
+
+        //computes the offset 
+        displs[0] = 0; 
+        for (int r = 1; r < commSize;r++) {
+            displs[r] = displs[r-1] + sendCounts[r-1]; 
+        }
+
+        //fills I,J, valVect in the order (rank 0,1...)
+        // They will contain the datas re-organized per rank owner 
+        I.resize(nnz); 
+        J.resize(nnz); 
+        valVect.resize(nnz); 
+
+        //cursor : how many elements have benn placed for the rank r 
+        // allows us to know were to write the next element for each rank 
+        std::vector<int> cursor(commSize,0); 
+        int owner = 0; 
+        int pos = 0; 
+        int index = 0;
+        for (index = 0;index<nnz;index++) {
+             // determines which rank is the owner of this row (cyclic)
+             owner = ROLE(rows_array[index],commSize); 
+
+             // writing position: starting of the rank owner position 
+             // + how many have been already written  
+             pos = displs[owner] + cursor[owner]; 
+
+             //place the triplet coo and the correct position 
+             I[pos] = rows_array[index]; //global row  
+             J[pos] = cols_array[index]; //global column
+             valVect[pos] = vals_array[index]; //global value
+
+             //increment the cursor of the rank owner 
+             cursor[owner]++; 
+        }
+        // free the C origin arrays (replaced by I,J and valVect)
+        free(rows_array); 
+        free(cols_array); 
+        free(vals_array); 
 
     }
+    //broadcast sendcounts at all the ranks 
+    MPI_Bcast(sendCounts.data(), commSize,MPI_INT,0,MPI_COMM_WORLD); 
+    int localNnz = sendCounts[currentRank];
 
+    //re-compute the displacement of all the ranks 
+    displs[0] = 0; 
+    for (int r = 1;r<commSize;r++) {
+        displs[r] = displs[r-1] + sendCounts[r-1]; 
+    }
 
+    //allocate the local buffers 
+    std::vector<int> localI(localNnz); 
+    std::vector<int> localJ(localNnz); 
+    std::vector<DATATYPE> localVals(localNnz);
+
+    //scatterv of lines, columns and values 
+
+    MPI_Scatterv( //for the comments : extracted from mpich.org
+        I.data(),          //adress of the buffer
+
+        sendCounts.data(), //integer array (of length group size) specifying 
+                           //the number of elements to send to each processor
+
+        displs.data(),      //integer array (of length group size). Entry
+                            // i specifies the displacement (relative 
+                            // to sendbuf from which 
+                            // to take the outgoing data to process i
+
+        MPI_INT,            //data type of send buffer elements (handle)
+
+        localI.data(),      // number of elements in receive buffer (integer)
+
+        localNnz,           // The number of elements in the receive buffer.
+
+        MPI_INT,            // The type of one receive buffer element.
+
+        0,                  // the rank of the root process
+
+        MPI_COMM_WORLD      // The communicator in which the scatter takes place.
+    );
+
+    MPI_Scatterv(
+        J.data(), 
+        sendCounts.data(), 
+        displs.data(),
+        MPI_INT, 
+        localJ.data(), 
+        localNnz, 
+        MPI_INT,
+        0,
+        MPI_COMM_WORLD
+    );
+
+    MPI_Scatterv(
+        valVect.data(), 
+        sendCounts.data(), 
+        displs.data(),
+        MPI_FLOAT,  //has to be modified if double type 
+        localVals.data(), 
+        localNnz, 
+        MPI_FLOAT,
+        0,
+        MPI_COMM_WORLD
+    );
+
+for (int r = 0; r < commSize; r++) {
+    MPI_Barrier(MPI_COMM_WORLD); //to group the printfs per ranks
+    if (currentRank == r) {
+        printf("[Rank %d] received %d non-zeros :\n", currentRank, localNnz);
+        for (int k = 0; k < localNnz; k++) {
+            printf("  nnz[%d] : row=%d col=%d val=%.2f\n",
+                k, localI[k], localJ[k], localVals[k]);
+        }
+    }
+}
 
 
     MPI_Finalize(); // Terminates MPI world model.
     return 0; 
 }
+

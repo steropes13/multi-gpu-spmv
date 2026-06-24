@@ -8,7 +8,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=4
 #SBATCH --cpus-per-task=1
-#SBATCH --gres=gpu:4 #can be changed 
+#SBATCH --gres=gpu:1 #can be changed 
 #SBATCH --mem=1G
 
 # Load modules
@@ -31,7 +31,7 @@ mpicc --version
 make clean && make
 
 # Run
-mpirun -np 4 --bind-to none bin/main ../../del-1/GPU_solution/mtx_matrix/cage15/cage15.mtx
+mpirun -np 4 --bind-to none bin/main ../../del-1/GPU_solution/mtx_matrix/nvidia.mtx
 
 #precisions on -bind-to none : 
 #sans ça, OpenMPI peut épingler 
