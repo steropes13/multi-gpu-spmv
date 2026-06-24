@@ -1,4 +1,5 @@
 #include <iostream> 
+#include <vector> // for the vectors of cpp (std)
 #include <mpi.h> 
 #include <nvml.h> 
 #include <stdio.h>
@@ -42,11 +43,12 @@ void printDevProp(cudaDeviceProp devProp)
 
 
 
+
 // I: Row index 
 // P: Number of processes 
 #define ROLE(I , P) ((I) % (P)) // Row ownership rule 
 
-int main(int argc, char * argv) {
+int main(int argc, char ** argv) {
     int M = 0; 
     int N = 0; 
     int nnz = 0; 
@@ -71,9 +73,18 @@ int main(int argc, char * argv) {
     //initializes MPI 
     int currentRank, commSize; 
     int bufferMtxHeaders[3]; 
-    MPI_CHECK(MPI_Init(&argc, &argv)); // Initializes the MPI world model
-    MPI_CHECK(MPI_Comm_rank(MPI_COMM_WORLD, &currentRank));
-    MPI_CHECK(MPI_Comm_size(MPI_COMM_WORLD, &commSize));  
+    int bufferHeaderSize = (int) sizeof(bufferMtxHeaders)/sizeof(int);
+
+    std::vector<int> I; 
+    std::vector<int> J; 
+    std::vector<DATATYPE> valVect; 
+
+
+
+
+    MPI_Init(&argc, &argv); // Initializes the MPI world model
+    MPI_Comm_rank(MPI_COMM_WORLD, &currentRank);
+    MPI_Comm_size(MPI_COMM_WORLD, &commSize);  
 
     int deviceCount = 0;
     cudaError_t error_id = cudaGetDeviceCount(&deviceCount);
@@ -92,7 +103,9 @@ int main(int argc, char * argv) {
 		sprintf(filename, "%s",argv[1]);
 		printf("filename : %s \n",filename);
         mmioReturn = mm_read_mtx_crd_sym(filename,&M,&N,&nnz,&row_ptr_mtx,&cols_array_mtx,&vals_array_mtx,&matcode);
+        printf("does the function work ? %d \n",mmioReturn);
         if (mmioReturn != 0) return EXIT_FAILURE; 
+        printf("values of M = %d, N = %d, nnz = %d \n",M,N,nnz); 
         vals_array = (DATATYPE*) calloc(nnz,sizeof(DATATYPE));
 		cols_array =  (int *) calloc(nnz,sizeof(int));
 		rows_array = (int *) calloc(nnz,sizeof(int));
@@ -113,24 +126,21 @@ int main(int argc, char * argv) {
         bufferMtxHeaders[0] = M; 
         bufferMtxHeaders[1] = N; 
         bufferMtxHeaders[2] = nnz; 
-        int bufferHeadersSize = (int) sizeof(bufferMtxHeaders)/sizeof(int);
 
     }
-    MPI_CHECK(
-        MPI_Bcast(
+    MPI_Bcast(
             bufferMtxHeaders,
-            bufferHeadersSize,
+            bufferHeaderSize,
             MPI_INT,
             0,
             MPI_COMM_WORLD
-        )
     );
 
     if (currentRank != 0) {
         M = bufferMtxHeaders[0];
         N = bufferMtxHeaders[1];
         nnz = bufferMtxHeaders[2];
-        printf("[MPI process %d] I am a broadcast receiver.\n", currentRank);
+        printf("[MPI process %d] I am a broadcast receiver. Values : (%d, %d, %d) \n", currentRank,M,N,nnz);
 
     }
 
