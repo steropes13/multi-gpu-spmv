@@ -2,7 +2,7 @@ CC = nvcc
 CUDA_TOOLKIT := $(shell dirname $$(command -v nvcc))/..
 LIBS =
 INCLUDES = -I../../ -I$(CUDA_TOOLKIT)/include
-LIB_FLAGS = -lm -lcusparse -lmpi 
+LIB_FLAGS = -lm -lmpi 
 
 BIN_FOLDER := bin
 OBJ_FOLDER := obj
@@ -17,7 +17,7 @@ OBJECTS = $(OBJ_FOLDER)/my_time_lib.o \
           $(OBJ_FOLDER)/mmio.o \
           $(OBJ_FOLDER)/spmvCPU.o 
 
-OBJECTS_CU = $(OBJ_FOLDER)/cuSparseComputation.o
+OBJECTS_CU = $(OBJ_FOLDER)/spmvGPU.o 
 
 all: $(BIN_FOLDER)/$(MAIN_BIN)
 
@@ -27,12 +27,12 @@ $(OBJ_FOLDER)/%.o: $(SRC_FOLDER)/%.c
 
 $(OBJ_FOLDER)/%.o: $(SRC_FOLDER)/%.cu
 	@mkdir -p $(BIN_FOLDER) $(OBJ_FOLDER) $(BATCH_OUT_FOLDER)
-	$(CC) -c $< -o $@ $(LIB_FLAGS) $(INCLUDES) 
+	$(CC) -c $< -o $@ $(LIB_FLAGS) $(INCLUDES) -arch=sm_80 
 
 
 $(BIN_FOLDER)/$(MAIN_BIN): $(MAIN_SRC) $(OBJECTS) $(OBJECTS_CU)
 	@mkdir -p $(BIN_FOLDER)
-	$(CC) $^ -g -o $@ $(LIBS) $(INCLUDES) $(LIB_FLAGS)
+	$(CC) $^ -g -o $@ $(LIBS) $(INCLUDES) $(LIB_FLAGS) -arch=sm_80
 
 clean:
 	rm -rf $(BIN_FOLDER) $(OBJ_FOLDER) 

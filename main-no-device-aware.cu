@@ -208,13 +208,6 @@ int main(int argc, char ** argv) {
     std::vector<int> localJ(localNnz); 
     std::vector<DATATYPE> localVals(localNnz);
 
-    //device aware: 
-    int   *d_localI, *d_localJ;
-    DATATYPE *d_localVals;
-    cudaMalloc(&d_localI,    localNnz * sizeof(int));
-    cudaMalloc(&d_localJ,    localNnz * sizeof(int));
-    cudaMalloc(&d_localVals, localNnz * sizeof(DATATYPE));
-
     //scatterv of lines, columns and values 
 
     MPI_Scatterv( //for the comments : extracted from mpich.org
@@ -230,7 +223,7 @@ int main(int argc, char ** argv) {
 
         MPI_INT,            //data type of send buffer elements (handle)
 
-        d_localI,      // number of elements in receive buffer (integer)
+        localI.data(),      // number of elements in receive buffer (integer)
 
         localNnz,           // The number of elements in the receive buffer.
 
@@ -246,7 +239,7 @@ int main(int argc, char ** argv) {
         sendCounts.data(), 
         displs.data(),
         MPI_INT, 
-        d_localJ, 
+        localJ.data(), 
         localNnz, 
         MPI_INT,
         0,
@@ -258,186 +251,190 @@ int main(int argc, char ** argv) {
         sendCounts.data(), 
         displs.data(),
         MPI_FLOAT,  //has to be modified if double type 
-        d_localVals, 
+        localVals.data(), 
         localNnz, 
         MPI_FLOAT,
         0,
         MPI_COMM_WORLD
     );
 
-
-
-
-cudaMemcpy(localI.data(),    d_localI,    localNnz * sizeof(int),   cudaMemcpyDeviceToHost);
-cudaMemcpy(localJ.data(),    d_localJ,    localNnz * sizeof(int),   cudaMemcpyDeviceToHost);
-cudaMemcpy(localVals.data(), d_localVals, localNnz * sizeof(float), cudaMemcpyDeviceToHost);
-
-/*
-for (int r = 0; r < commSize; r++) {
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (currentRank == r) {
-        printf("[Rank %d] received %d non-zeros :\n", currentRank, localNnz);
-        for (int k = 0; k < localNnz; k++) {
-            printf("  nnz[%d] : row=%d col=%d val=%.2f\n",
-                k, localI[k], localJ[k], localVals[k]);
+    for (int r = 0; r < commSize; r++) {
+        MPI_Barrier(MPI_COMM_WORLD); //to group the printfs per ranks
+        if (currentRank == r) {
+            printf("[Rank %d] received %d non-zeros :\n", currentRank, localNnz);
+            for (int k = 0; k < localNnz; k++) {
+                printf("  nnz[%d] : row=%d col=%d val=%.2f\n",
+                    k, localI[k], localJ[k], localVals[k]);
+            }
         }
     }
-}
-*/
-// === CSR local ===
-int numberLocalLine = 0;
-for (int i = 0; i < M; i++)
-    if (ROLE(i, commSize) == currentRank) numberLocalLine++;
 
-std::vector<int> localRowPtr(numberLocalLine + 1, 0);
-for (int k = 0; k < localNnz; k++) {
-    int localRow = localI[k] / commSize;
-    localRowPtr[localRow + 1]++;
-}
-for (int i = 0; i < numberLocalLine; i++)
-    localRowPtr[i + 1] += localRowPtr[i];
+    //-- CSR SpMV construction ------- 
+    int numberLocalLine = 0; 
+    for (int i = 0;i<M;i++) {
+        if (ROLE(i,commSize) == currentRank) numberLocalLine++; 
+    }
 
-// === Ghost entries ===
-std::vector<int> recvCounts(commSize, 0);
-std::vector<int> flatRequest;
-for (int r = 0; r < commSize; r++) {
-    std::set<int> cols;
-    for (int k = 0; k < localNnz; k++)
-        if (ROLE(localJ[k], commSize) == r) cols.insert(localJ[k]);
-    for (int c : cols) flatRequest.push_back(c);
-    sendCounts[r] = cols.size();
-}
+    //row_ptr of size numberLocalLine, initialized at 0 
+    std::vector<int> localRowPtr(numberLocalLine+ 1,0); 
 
-MPI_Alltoall(sendCounts.data(), 1, MPI_INT, recvCounts.data(), 1, MPI_INT, MPI_COMM_WORLD);
+    //compute the nnz per local line 
+    for (int k=0;k<localNnz;k++) {
+        int localRow = localI[k] / commSize; //cyclic renumeration -> local line 
+        localRowPtr[localRow + 1]++; 
+    }
 
-std::vector<int> sDispls(commSize, 0), rDispls(commSize, 0);
-for (int r = 1; r < commSize; r++) {
-    sDispls[r] = sDispls[r-1] + sendCounts[r-1];
-    rDispls[r] = rDispls[r-1] + recvCounts[r-1];
-}
+    //prefix_sum via row_ptr CSR 
+    for (int i = 0; i < numberLocalLine;i++) {
+        localRowPtr[i+1] += localRowPtr[i]; 
+    }
 
-int totalToServe = rDispls[commSize-1] + recvCounts[commSize-1];
-std::vector<int> colsToServe(totalToServe);
+    //CSR setup 
+    // 1. count the necessary columns for ran 
+    std::vector<int> recvCounts(commSize, 0);
+    std::vector<int> flatRequest;
+    for (int r = 0;r<commSize;r++) {
+        std::set<int> cols; 
+        for (int k = 0; k<localNnz;k++) {
+            if (ROLE(localJ[k], commSize) == r) cols.insert(localJ[k]); 
+        }
+        for (int c : cols) flatRequest.push_back(c); 
+        sendCounts[r] = cols.size(); 
+    }
+    // exxchange the counts and the index asked 
+    MPI_Alltoall(sendCounts.data(),1,MPI_INT,recvCounts.data(),1,MPI_INT,MPI_COMM_WORLD); 
 
-// Échange des indices de colonnes (CPU → CPU, ce sont des métadonnées)
-MPI_Alltoallv(flatRequest.data(), sendCounts.data(), sDispls.data(), MPI_INT,
-              colsToServe.data(), recvCounts.data(), rDispls.data(), MPI_INT,
-              MPI_COMM_WORLD);
+    //Computes the displacement for the receive adnd the sending. 
+    std::vector<int> sDispls(commSize,0), rDispls(commSize, 0); 
+    for (int r = 1;r < commSize;r++) {
+        sDispls[r] = sDispls[r-1] + sendCounts[r-1]; 
+        rDispls[r] = rDispls[r-1] + recvCounts[r-1];
+    }
+    int totalToServe = rDispls[commSize-1] + recvCounts[commSize-1];
+    std::vector<int> colsToServe(totalToServe);
+    MPI_Alltoallv(flatRequest.data(), sendCounts.data(),sDispls.data(), MPI_INT,colsToServe.data(),recvCounts.data(),rDispls.data(),MPI_INT,MPI_COMM_WORLD); 
 
-// === Allocations GPU ===
-int   *d_row_ptr, *d_col_idx;
-DATATYPE *d_vals, *d_x, *d_y;
-DATATYPE *d_toSend, *d_xGhost;
-int   *d_colsToServe, *d_flatRequest;
+    std::vector<DATATYPE> xLocal(N,1.0f); //needs to be changed 
+    std::vector<DATATYPE> toSend(totalToServe), xGhost(flatRequest.size()); 
+    
+    for (int k = 0; k<totalToServe;k++) {
+        toSend[k] = xLocal[colsToServe[k]];
+    }
 
-cudaMalloc(&d_row_ptr,     (numberLocalLine + 1) * sizeof(int));
-cudaMalloc(&d_col_idx,     localNnz              * sizeof(int));
-cudaMalloc(&d_vals,        localNnz              * sizeof(DATATYPE));
-cudaMalloc(&d_x,           N                     * sizeof(DATATYPE));
-cudaMalloc(&d_y,           numberLocalLine        * sizeof(DATATYPE));
-cudaMalloc(&d_toSend,      totalToServe           * sizeof(DATATYPE));
-cudaMalloc(&d_xGhost,      flatRequest.size()     * sizeof(DATATYPE));
-cudaMalloc(&d_colsToServe, totalToServe           * sizeof(int));
-cudaMalloc(&d_flatRequest, flatRequest.size()     * sizeof(int));
+    MPI_Alltoallv(toSend.data(),recvCounts.data(),rDispls.data(),MPI_FLOAT,xGhost.data(),sendCounts.data(),sDispls.data(),MPI_FLOAT,MPI_COMM_WORLD);
+    // 4. Construire xForKernel
+    std::vector<float> xForKernel(N, 0.0f);
+    for (int k = 0; k < (int)flatRequest.size(); k++)
+        xForKernel[flatRequest[k]] = xGhost[k];
 
-// === Transferts Host → GPU ===
-cudaMemcpy(d_row_ptr,     localRowPtr.data(),  (numberLocalLine+1)    * sizeof(int),   cudaMemcpyHostToDevice);
-cudaMemcpy(d_col_idx,     localJ.data(),        localNnz              * sizeof(int),   cudaMemcpyHostToDevice);
-cudaMemcpy(d_vals,        localVals.data(),     localNnz              * sizeof(DATATYPE), cudaMemcpyHostToDevice);
-cudaMemcpy(d_colsToServe, colsToServe.data(),   totalToServe          * sizeof(int),   cudaMemcpyHostToDevice);
-cudaMemcpy(d_flatRequest, flatRequest.data(),   flatRequest.size()    * sizeof(int),   cudaMemcpyHostToDevice);
+    //APPEL KERNEL : 
+    // === Allocations GPU ===
+    int   *d_row_ptr, *d_col_idx;
+    float *d_vals, *d_x, *d_y;
 
-// xLocal sur GPU (vecteur x d'entrée, ici à 1.0f)
-DATATYPE *d_xLocal;
-cudaMalloc(&d_xLocal, N * sizeof(DATATYPE));
-// remplir d_xLocal à 1.0f
-std::vector<DATATYPE> xLocal(N, 1.0f);
-cudaMemcpy(d_xLocal, xLocal.data(), N * sizeof(DATATYPE), cudaMemcpyHostToDevice);
+    cudaMalloc(&d_row_ptr, (numberLocalLine + 1) * sizeof(int));
+    cudaMalloc(&d_col_idx, localNnz     * sizeof(int));
+    cudaMalloc(&d_vals,    localNnz     * sizeof(float));
+    cudaMalloc(&d_x,       N            * sizeof(float));
+    cudaMalloc(&d_y,       numberLocalLine       * sizeof(float));
 
-// Kernel : remplir d_toSend[k] = d_xLocal[colsToServe[k]]
-if (totalToServe > 0)
-gatherXValues<<<(totalToServe + 255) / 256, 256>>>(d_toSend, d_xLocal, d_colsToServe, totalToServe);
-cudaDeviceSynchronize();
+    // === Transfert Host → GPU ===
+    cudaMemcpy(d_row_ptr, localRowPtr.data(), (numberLocalLine+1) * sizeof(int),   cudaMemcpyHostToDevice);
+    cudaMemcpy(d_col_idx, localJ.data(),       localNnz  * sizeof(int),   cudaMemcpyHostToDevice);
+    cudaMemcpy(d_vals,    localVals.data(),    localNnz  * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_x,       xForKernel.data(),   N         * sizeof(float), cudaMemcpyHostToDevice);
 
-// Échange des valeurs de x (CUDA-aware : GPU → GPU)
-MPI_Alltoallv(d_toSend, recvCounts.data(), rDispls.data(), MPI_FLOAT,
-              d_xGhost, sendCounts.data(), sDispls.data(), MPI_FLOAT,
-              MPI_COMM_WORLD);
+    // === Appel kernel ===
+    cudaMemset(d_y, 0, numberLocalLine * sizeof(float));
 
-// Kernel : construire d_x[flatRequest[k]] = d_xGhost[k]
-cudaMemset(d_x, 0, N * sizeof(DATATYPE));
-if (flatRequest.size() > 0)
-scatterXValues<<<(flatRequest.size() + 255) / 256, 256>>>(d_x, d_xGhost, d_flatRequest, flatRequest.size());
-cudaDeviceSynchronize();
+    int warpsPerBlock   = 8;
+    int threadsPerBlock = warpsPerBlock * 32;
+    int numBlocks       = (numberLocalLine + warpsPerBlock - 1) / warpsPerBlock;
+    size_t sharedSize   = warpsPerBlock * 32 * sizeof(float);
 
-// === Appel kernel SpMV ===
-cudaMemset(d_y, 0, numberLocalLine * sizeof(DATATYPE));
-
-int warpsPerBlock   = 8;
-int threadsPerBlock = warpsPerBlock * 32;
-int numBlocks       = (numberLocalLine + warpsPerBlock - 1) / warpsPerBlock;
-size_t sharedSize   = warpsPerBlock * 32 * sizeof(DATATYPE);
-
-computeSpmvCSRWarpGPU<<<numBlocks, threadsPerBlock, sharedSize>>>(
-    d_y, nullptr, d_col_idx, d_vals, d_x, localNnz, numberLocalLine, d_row_ptr
-);
-cudaDeviceSynchronize();
-
-cudaError_t err = cudaGetLastError();
+    computeSpmvCSRWarpGPU<<<numBlocks, threadsPerBlock, sharedSize>>>(
+        d_y, nullptr, d_col_idx, d_vals, d_x, localNnz, numberLocalLine, d_row_ptr
+    );
+    cudaDeviceSynchronize();
+    cudaError_t err = cudaGetLastError();
 if (err != cudaSuccess)
     printf("[Rank %d] CUDA error: %s\n", currentRank, cudaGetErrorString(err));
 
-// === Gather CUDA-aware : d_y directement ===
+    // === Récupérer le résultat ===
+    std::vector<float> localY(numberLocalLine);
+    cudaMemcpy(localY.data(), d_y, numberLocalLine * sizeof(float), cudaMemcpyDeviceToHost);
+
+    // Juste après cudaMemcpy localY
+    /*
+    for (int r = 0; r < commSize; r++) {
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (currentRank == r) {
+            printf("[Rank %d] localY :\n", currentRank);
+            for (int i = 0; i < numberLocalLine; i++)
+                printf("  y[%d] = %.2f\n", i, localY[i]);
+        }
+    }
+    */
+
+    // === Libérer GPU ===
+    cudaFree(d_row_ptr);
+    cudaFree(d_col_idx);
+    cudaFree(d_vals);
+    cudaFree(d_x);
+    cudaFree(d_y);
+
+    MPI_Barrier(MPI_COMM_WORLD); 
+    /*
+    printf("[Rank %d] numberLocalLine=%d localNnz=%d\n", currentRank, numberLocalLine, localNnz);
+    for (int i = 0; i <= numberLocalLine; i++) {
+        printf("[Rank %d] row_ptr[%d] = %d\n", currentRank, i, localRowPtr[i]);
+        printf("[Rank %d] y[%d] = %.2f\n", currentRank, i, localY[i]);
+    }
+    for (int k = 0; k < (int)flatRequest.size(); k++)
+        printf("[Rank %d] x[%d] = %.2f\n", currentRank, flatRequest[k], xGhost[k]);
+    */
+    // Chaque rank a un nombre différent de lignes → Gatherv
 std::vector<int> gatherCounts(commSize, 0);
 std::vector<int> gatherDispls(commSize, 0);
 
+// Dire à tous combien de lignes chaque rank a
 MPI_Allgather(&numberLocalLine, 1, MPI_INT, gatherCounts.data(), 1, MPI_INT, MPI_COMM_WORLD);
 
+// Calculer les displacements
 for (int r = 1; r < commSize; r++)
     gatherDispls[r] = gatherDispls[r-1] + gatherCounts[r-1];
 
-DATATYPE *d_globalY = nullptr;
-if (currentRank == 0)
-    cudaMalloc(&d_globalY, M * sizeof(DATATYPE));
+// Allouer y global sur le rank 0
+std::vector<float> globalY;
+if (currentRank == 0) globalY.resize(M, 0.0f);
 
-// CUDA-aware : d_y passé directement à MPI
+// Rassembler les localY
 MPI_Gatherv(
-    d_y,       numberLocalLine,          MPI_FLOAT,
-    d_globalY, gatherCounts.data(), gatherDispls.data(), MPI_FLOAT,
+    localY.data(), numberLocalLine, MPI_FLOAT,
+    globalY.data(), gatherCounts.data(), gatherDispls.data(), MPI_FLOAT,
     0, MPI_COMM_WORLD
 );
 
-// Réordonner sur rank 0
 if (currentRank == 0) {
-    std::vector<DATATYPE> globalY(M);
-    cudaMemcpy(globalY.data(), d_globalY, M * sizeof(DATATYPE), cudaMemcpyDeviceToHost);
-
-    std::vector<DATATYPE> globalYOrdered(M, 0.0f);
-    std::vector<int>   cursor(commSize, 0);
+    std::vector<float> globalYOrdered(M, 0.0f);
+    
+    // curseur par rank
+    std::vector<int> cursor(commSize, 0);
+    
     for (int i = 0; i < M; i++) {
-        int owner         = ROLE(i, commSize);
-        int pos           = gatherDispls[owner] + cursor[owner];
+        int owner    = ROLE(i, commSize);
+        int pos      = gatherDispls[owner] + cursor[owner];
         globalYOrdered[i] = globalY[pos];
         cursor[owner]++;
     }
 
-    printf("=== Résultat y global ===\n");
-    for (int i = 0; i < M; i++)
-        printf("  y[%d] = %.2f\n", i, globalYOrdered[i]);
+    // Afficher le résultat global sur rank 0
+    if (currentRank == 0) {
+        printf("=== Résultat y global ===\n");
+        for (int i = 0; i < M; i++)
+            printf("  y[%d] = %.2f\n", i, globalYOrdered[i]);
+    }
 }
-
-// === Libérer GPU ===
-cudaFree(d_row_ptr);
-cudaFree(d_col_idx);
-cudaFree(d_vals);
-cudaFree(d_x);
-cudaFree(d_y);
-cudaFree(d_toSend);
-cudaFree(d_xGhost);
-cudaFree(d_colsToServe);
-cudaFree(d_flatRequest);
-cudaFree(d_xLocal);
-if (currentRank == 0) cudaFree(d_globalY);
 
 
 
@@ -449,11 +446,11 @@ if (currentRank == 0) cudaFree(d_globalY);
    int MPI_Alltoallv(const void* buffer_send,
                   const int* counts_send,
                   const int* displacements_send,
-                  MPI_FLOAT datatype_send,
+                  MPI_Datatype datatype_send,
                   void* buffer_recv,
                   const int* counts_recv,
                   const int* displacements_recv,
-                  MPI_FLOAT datatype_recv,
+                  MPI_Datatype datatype_recv,
                   MPI_Comm communicator);
 
     */

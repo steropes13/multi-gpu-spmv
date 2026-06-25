@@ -1,14 +1,14 @@
 #!/bin/bash
 #SBATCH --partition=edu-short
 #SBATCH --account=gpu.computing26
-#SBATCH --job-name=mpispmv
-#SBATCH --output=mpispmv.o
-#SBATCH --error=mpispmv.e
-#SBATCH --time=00:02:00
+#SBATCH --job-name=coo-nvidia
+#SBATCH --output=coo-nvidia.o
+#SBATCH --error=coo-nvidia.e
+#SBATCH --time=00:05:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=4
 #SBATCH --cpus-per-task=1
-#SBATCH --gres=gpu:1 #can be changed 
+#SBATCH --gres=gpu:2 #can be changed 
 #SBATCH --mem=1G
 
 # Load modules
@@ -18,6 +18,9 @@ module load CUDA/12.5.0
 # Print compiler versions
 gcc --version
 mpicc --version
+
+
+
 
 # makefile 
 #make 
@@ -30,9 +33,17 @@ mpicc --version
 # Build via makefile (no need of mpicc, nvcc does all the job)
 make clean && make
 
+#for the MPI-cuda device aware 
+export OMPI_MCA_opal_cuda_support=true
+
+#run
+mpirun --mca opal_cuda_support 1 -np 4 bin/main ../../del-1/GPU_solution/mtx_matrix/cage15/cage15.mtx
+
 # Run
-mpirun -np 4 --bind-to none bin/main ../../del-1/GPU_solution/mtx_matrix/nvidia.mtx
+#mpirun -np 4 --bind-to none bin/main ../../del-1/GPU_solution/mtx_matrix/nvidia.mtx
 
 #precisions on -bind-to none : 
 #sans ça, OpenMPI peut épingler 
 #les processus de façon agressive et bloquer l'accès GPU.
+
+ompi_info | grep -i cuda
