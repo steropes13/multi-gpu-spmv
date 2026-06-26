@@ -40,6 +40,10 @@ void printDevProp(cudaDeviceProp devProp)
 
 #define DATATYPE float 
 
+//constant time measurement for 
+#define WARMUP 10 
+#define ITERATIONS 30 
+
 //TODO: envoyer des std::vector.data() (pour les pointeurs)
 // dans les scatter pour chaque autres processeus 
 //ici on veut envoyer I,J et Vals. 
@@ -85,6 +89,15 @@ int main(int argc, char ** argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &currentRank);
     MPI_Comm_size(MPI_COMM_WORLD, &commSize);  
 
+    //time measurement and performance 
+    double totalTime = 0.0; // total time for the iterations of total measure
+    double avgTime = 0.0;   //  Mean time per iteration 
+    double flops = 0.0;    //number of flops FLOPS (2 * nnz par itération)
+    double gflops = 0.0;   // GFLOPS = FLOPS / time 
+    double speedup = 1.0;  // Speedup compared to one CPU 
+    double efficiency = 1.0; // efficiency = speedup / number of  GPUs
+    cudaEvent_t start, stop; //  CUDA events to measure the time
+
     int deviceCount = 0;
     cudaError_t error_id = cudaGetDeviceCount(&deviceCount);
     fprintf(stdout, "Process %d see %d GPUs.\n", currentRank, deviceCount);
@@ -94,6 +107,9 @@ int main(int argc, char ** argv) {
     }
     int gpuId = currentRank % deviceCount;
     cudaSetDevice(gpuId); 
+    // Initialize cuda event to measure the time 
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
     printf("Rank %d uses GPU %d\n", currentRank, gpuId);
 
 
@@ -271,7 +287,7 @@ int main(int argc, char ** argv) {
 
 cudaMemcpy(localI.data(),    d_localI,    localNnz * sizeof(int),   cudaMemcpyDeviceToHost);
 cudaMemcpy(localJ.data(),    d_localJ,    localNnz * sizeof(int),   cudaMemcpyDeviceToHost);
-cudaMemcpy(localVals.data(), d_localVals, localNnz * sizeof(float), cudaMemcpyDeviceToHost);
+cudaMemcpy(localVals.data(), d_localVals, localNnz * sizeof(DATATYPE), cudaMemcpyDeviceToHost);
 
 /*
 for (int r = 0; r < commSize; r++) {
@@ -403,18 +419,51 @@ for (int i = 0; i < numberLocalLine; i++)
     int    numBlocks       = (numberLocalLine + warpsPerBlock - 1) / warpsPerBlock;
     size_t sharedSize      = warpsPerBlock * 32 * sizeof(DATATYPE);
 
-    computeSpmvCSRWarpGPU<<<numBlocks, threadsPerBlock, sharedSize>>>(
-        d_y, nullptr, d_colIdxRemapped, d_vals, d_xExtended, localNnz, numberLocalLine, d_row_ptr
-    );
+
+
+    // Warmup (10 iterations)
+    for (int iter = 0; iter < WARMUP; iter++) {
+        cudaMemset(d_y, 0, numberLocalLine * sizeof(DATATYPE));
+        computeSpmvCSRWarpGPU<<<numBlocks, threadsPerBlock, sharedSize>>>(
+            d_y, nullptr, d_colIdxRemapped, d_vals, d_xExtended, localNnz, numberLocalLine, d_row_ptr
+        );
+        cudaDeviceSynchronize();
+    }
+    cudaDeviceSynchronize(); //final synchronization after the warmup 
+
+    // Measurement of performance
+    cudaEventRecord(start); // Start of the measure
+
+    for (int iter = 0; iter < ITERATIONS; iter++) {
+        cudaMemset(d_y, 0, numberLocalLine * sizeof(DATATYPE));
+        computeSpmvCSRWarpGPU<<<numBlocks, threadsPerBlock, sharedSize>>>(
+            d_y, nullptr, d_colIdxRemapped, d_vals, d_xExtended, localNnz, numberLocalLine, d_row_ptr
+        );
     cudaDeviceSynchronize();
+    }
+
+    cudaEventRecord(stop); // End of the measure
+    cudaEventSynchronize(stop); // whaits that the event has been registered 
+
+    // total time in miliseconds 
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    totalTime = milliseconds / 1000.0; // Converts in seconds 
+    avgTime = totalTime / ITERATIONS; //Mean time in seconds
+
+    // Computes the flops 
+    flops = 2.0 * nnz * ITERATIONS; // 2 FLOPS par nnz (1 multiplication + 1 addition)
+    gflops = flops / (totalTime * 1e9); // Converts in GFLOPS (1e9 FLOPS = 1 GFLOP)
+
+    // Print the results for this processus 
+    printf("[Rank %d] Mean time per iteration : %.6f s\n", currentRank, avgTime);
+printf("[Rank %d] GFLOPS: %.2f\n", currentRank, gflops);
 
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess)
         printf("[Rank %d] CUDA error: %s\n", currentRank, cudaGetErrorString(err));
 
-    // =========================================================
     // Gatherv CUDA-aware : d_y → d_globalY
-    // =========================================================
     std::vector<int> gatherCounts(commSize, 0);
     std::vector<int> gatherDispls(commSize, 0);
 
@@ -427,13 +476,30 @@ for (int i = 0; i < numberLocalLine; i++)
     if (currentRank == 0)
         cudaMalloc(&d_globalY, M * sizeof(DATATYPE));
 
+    //Computes the speedup and the efficiency if several process
+    MPI_Allreduce(&avgTime, &totalTime, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    double globalAvgTime = totalTime / commSize; // Temps moyen global (par processus)
+
+    // Speedup = Sequential time (1 GPU) / Temps parallèle (N GPUs)
+    // Speed Up=(Time of the best sequential algorithm to solve problem X)/(Time for p processors to solve problem X in parallel)
+    if (currentRank == 0) {
+        double sequentialTime = avgTime * commSize; // Hypothesis :  Sequential time = N * temps parallèle
+        speedup = sequentialTime / avgTime;
+        efficiency = speedup / commSize;
+
+        printf("\n=== Gllobal performance ===\n");
+        printf("Mean time per execution (par GPU): %.6f s\n", avgTime);
+        printf("Global mean time (1 itération): %.6f s\n", globalAvgTime);
+        printf("Speedup: %.2f\n", speedup);
+        printf("Efficienc: %.2f%%\n", efficiency * 100.0);
+        printf("Global GFLOPS: %.2f\n", gflops * commSize); // GFLOPS totaux (tous GPUs)
+    }
+
     MPI_Gatherv(d_y,       numberLocalLine,           MPI_FLOAT,
                 d_globalY, gatherCounts.data(), gatherDispls.data(), MPI_FLOAT,
                 0, MPI_COMM_WORLD);
 
-    // =========================================================
     // Réordonnancement et affichage sur rank 0
-    // =========================================================
     if (currentRank == 0) {
         std::vector<DATATYPE> globalY(M);
         cudaMemcpy(globalY.data(), d_globalY, M * sizeof(DATATYPE), cudaMemcpyDeviceToHost);
@@ -446,10 +512,11 @@ for (int i = 0; i < numberLocalLine; i++)
             globalYOrdered[i] = globalY[pos];
             cursor[owner]++;
         }
-
+        /*
         printf("=== Résultat y global ===\n");
         for (int i = 0; i < M; i++)
             printf("  y[%d] = %.5f\n", i, globalYOrdered[i]);
+        */
     }
 
     if (currentRank == 0)
@@ -457,10 +524,8 @@ for (int i = 0; i < numberLocalLine; i++)
 
     printf("[Rank %d] xLocalSize=%d xExtendedSize=%d\n", 
         currentRank, xLocalSize, xExtendedSize);
-    // =========================================================
-    // Libérer GPU
-    // =========================================================
-    cudaFree(d_row_ptr);
+-    // Free gpu 
+-    cudaFree(d_row_ptr);
     cudaFree(d_colIdxRemapped);
     cudaFree(d_vals);
     cudaFree(d_y);
@@ -475,23 +540,7 @@ for (int i = 0; i < numberLocalLine; i++)
 //2e Alltoallv  : je renvoie les valeurs demandées     → les rôles sont inversés !
 //sendCounts[r] = combien j'avais demandé à r   = combien r va me renvoyer
 //recvCounts[r] = combien r m'avait demandé     = combien je dois renvoyer à r
-    /*
-   int MPI_Alltoallv(const void* buffer_send,
-                  const int* counts_send,
-                  const int* displacements_send,
-                  MPI_FLOAT datatype_send,
-                  void* buffer_recv,
-                  const int* counts_recv,
-                  const int* displacements_recv,
-                  MPI_FLOAT datatype_recv,
-                  MPI_Comm communicator);
 
-    */
-
-    //TODO : faire la partie sur le CSR (version courte) 
-    // et l'appel du kernel. (nullptr pour le mien car rows inutile ?)
-    //afficher certains résultats 
-    // attention à localM à changer par numberLocalLine
 
 
     MPI_Finalize(); // Terminates MPI world model.
