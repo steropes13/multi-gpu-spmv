@@ -94,8 +94,8 @@ int main(int argc, char ** argv) {
     double avgTime = 0.0;   //  Mean time per iteration 
     double flops = 0.0;    //number of flops FLOPS (2 * nnz par itération)
     double gflops = 0.0;   // GFLOPS = FLOPS / time 
-    double speedup = 1.0;  // Speedup compared to one CPU 
-    double efficiency = 1.0; // efficiency = speedup / number of  GPUs
+    //double speedup = 1.0;  // Speedup compared to one CPU 
+    //double efficiency = 1.0; // efficiency = speedup / number of  GPUs
     cudaEvent_t start, stop; //  CUDA events to measure the time
 
     int deviceCount = 0;
@@ -452,12 +452,13 @@ for (int i = 0; i < numberLocalLine; i++)
     avgTime = totalTime / ITERATIONS; //Mean time in seconds
 
     // Computes the flops 
-    flops = 2.0 * nnz * ITERATIONS; // 2 FLOPS par nnz (1 multiplication + 1 addition)
+    flops = 2.0 * localNnz * ITERATIONS; // 2 FLOPS par nnz (1 multiplication + 1 addition)
     gflops = flops / (totalTime * 1e9); // Converts in GFLOPS (1e9 FLOPS = 1 GFLOP)
 
     // Print the results for this processus 
-    printf("[Rank %d] Mean time per iteration : %.6f s\n", currentRank, avgTime);
-printf("[Rank %d] GFLOPS: %.2f\n", currentRank, gflops);
+    printf("commSize,AverageTime,GFLOPS\n");
+    printf("%d,%.6f,%.2f\n", commSize, avgTime, gflops);
+    printf("[Rank %d] GFLOPS: %.2f\n", currentRank, gflops);
 
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -482,19 +483,19 @@ printf("[Rank %d] GFLOPS: %.2f\n", currentRank, gflops);
 
     // Speedup = Sequential time (1 GPU) / Temps parallèle (N GPUs)
     // Speed Up=(Time of the best sequential algorithm to solve problem X)/(Time for p processors to solve problem X in parallel)
-    if (currentRank == 0) {
+    
+    /*if (currentRank == 0) {
         double sequentialTime = avgTime * commSize; // Hypothesis :  Sequential time = N * temps parallèle
-        speedup = sequentialTime / avgTime;
+        speedup = globalAvgTime * commSize / globalAvgTime;
         efficiency = speedup / commSize;
 
         printf("\n=== Gllobal performance ===\n");
         printf("Mean time per execution (par GPU): %.6f s\n", avgTime);
         printf("Global mean time (1 itération): %.6f s\n", globalAvgTime);
-        printf("Speedup: %.2f\n", speedup);
         printf("Efficienc: %.2f%%\n", efficiency * 100.0);
         printf("Global GFLOPS: %.2f\n", gflops * commSize); // GFLOPS totaux (tous GPUs)
     }
-
+        */
     MPI_Gatherv(d_y,       numberLocalLine,           MPI_FLOAT,
                 d_globalY, gatherCounts.data(), gatherDispls.data(), MPI_FLOAT,
                 0, MPI_COMM_WORLD);
