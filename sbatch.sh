@@ -8,7 +8,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=4
 #SBATCH --cpus-per-task=1
-#SBATCH --gres=gpu:2 #can be changed 
+#SBATCH --gres=gpu:4 #can be changed 
 #SBATCH --mem=1G
 
 # Load modules

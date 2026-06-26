@@ -89,9 +89,10 @@ void computeSpmvCSRWarpGPU(float * res, int * rows_array, int * cols_array, floa
 #endif
 
 
-__global__ void gatherXValues(float *toSend, float *xLocal, int *colsToServe, int n) {
+__global__ void gatherXValues(float *toSend, float *xLocal, int *colsToServe, int n, int commSize) {
     int k = blockIdx.x * blockDim.x + threadIdx.x;
-    if (k < n) toSend[k] = xLocal[colsToServe[k]];
+    if (k < n)
+        toSend[k] = xLocal[colsToServe[k] / commSize];
 }
 
 __global__ void scatterXValues(float *xForKernel, float *xGhost, int *flatRequest, int n) {
