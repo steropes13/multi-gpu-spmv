@@ -439,12 +439,14 @@ cudaDeviceSynchronize();
     avgTime = totalTime / ITERATIONS; //Mean time in seconds
 
     // Computes the flops 
-    flops = 2.0 * nnz * ITERATIONS; // 2 FLOPS par nnz (1 multiplication + 1 addition)
+    flops = 2.0 * localNnz * ITERATIONS; // 2 FLOPS par nnz (1 multiplication + 1 addition)
     gflops = flops / (totalTime * 1e9); // Converts in GFLOPS (1e9 FLOPS = 1 GFLOP)
 
     // Print the results for this processus 
     printf("[Rank %d] Mean time per iteration : %.6f s\n", currentRank, avgTime);
+    //[REPORT]the max time is the time which has to be added to the report (THE SLOWER ONE)
 printf("[Rank %d] GFLOPS: %.2f\n", currentRank, gflops);
+    //[REPORT]the sum has to be done for the total gflops of the programm 
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess)
         printf("[Rank %d] CUDA error: %s\n", currentRank, cudaGetErrorString(err));
