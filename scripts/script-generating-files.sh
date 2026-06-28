@@ -14,7 +14,7 @@ for mName in "${matrix_names[@]}"; do
 #SBATCH --error=$mName-$nbGpu.e
 #SBATCH --time=00:05:00
 #SBATCH --nodes=1
-#SBATCH --ntasks=4
+#SBATCH --ntasks=$nbGpu
 #SBATCH --cpus-per-task=1
 #SBATCH --gres=gpu:$nbGpu #can be changed 
 #SBATCH --mem=1G
@@ -37,13 +37,13 @@ mpicc --version
 
 
 # Build via makefile (no need of mpicc, nvcc does all the job)
-make clean && make
+#make clean && make
 
 #for the MPI-cuda device aware 
 export OMPI_MCA_opal_cuda_support=true
 
 #run
-mpirun --mca opal_cuda_support 1 -np 4 $current_dir/bin/main $current_dir/$mName/$mName.mtx
+mpirun --mca opal_cuda_support 1 -np $nbGpu $current_dir/bin/main $current_dir/$mName/$mName.mtx
 
 ompi_info | grep -i cuda
 
