@@ -1,0 +1,55 @@
+Loading OpenMPI/4.1.5-GCC-12.3.0
+  Loading requirement: GCCcore/12.3.0 zlib/1.2.13-GCCcore-12.3.0
+    binutils/2.40-GCCcore-12.3.0 GCC/12.3.0 numactl/2.0.16-GCCcore-12.3.0
+    XZ/5.4.2-GCCcore-12.3.0 libxml2/2.11.4-GCCcore-12.3.0
+    libpciaccess/0.17-GCCcore-12.3.0 hwloc/2.9.1-GCCcore-12.3.0 OpenSSL/1.1
+    libevent/2.1.12-GCCcore-12.3.0 UCX/1.14.1-GCCcore-12.3.0
+    libfabric/1.18.0-GCCcore-12.3.0 PMIx/4.2.4-GCCcore-12.3.0
+    UCC/1.2.0-GCCcore-12.3.0
+gcc (GCC) 12.3.0
+Copyright (C) 2022 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+gcc (GCC) 12.3.0
+Copyright (C) 2022 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Process 0 see 1 GPUs.
+Rank 0 uses GPU 0
+filename : /home/titienjacques.marie/del-2/multi-gpu-spmv/Ge87H76/Ge87H76.mtx 
+does the function work ? 0 
+values of M = 112985, N = 112985, nnz = 7892195 
+[MPI process 0] I am a broadcast receiver. Values : (112985, 112985, 7892195) 
+[Rank 0] Mean time per iteration : 0.000032 s
+[Rank 0] GFLOPS: 496.17
+
+=== Global result y (first 10 rows) ===
+  y[0] = 9.295609
+  y[1] = 9.343103
+  y[2] = -9.332071
+  y[3] = 4.388484
+  y[4] = -4.382752
+  y[5] = 4.660672
+  y[6] = 3.953376
+  y[7] = -8.927496
+  y[8] = 5.128188
+  y[9] = 6.575283
+=== Global result y (last 10 rows) ===
+  y[112975] = 14.996469
+  y[112976] = 3.580923
+  y[112977] = 32.731712
+  y[112978] = 3.814970
+  y[112979] = -1.407118
+  y[112980] = 10.567474
+  y[112981] = 28.120888
+  y[112982] = 9.175707
+  y[112983] = 27.222618
+  y[112984] = 37.405861
+M=112985 N=112985 nnz=7892195
+[Rank 0] xLocalSize=112985 xExtendedSize=225970
+  Configure command line: '--prefix=/opt/shares/easybuild/software/OpenMPI/4.1.5-GCC-12.3.0' '--build=x86_64-pc-linux-gnu' '--host=x86_64-pc-linux-gnu' '--with-cuda=internal' '--enable-mpirun-prefix-by-default' '--enable-shared' '--with-hwloc=/opt/shares/easybuild/software/hwloc/2.9.1-GCCcore-12.3.0' '--with-libevent=/opt/shares/easybuild/software/libevent/2.1.12-GCCcore-12.3.0' '--with-ofi=/opt/shares/easybuild/software/libfabric/1.18.0-GCCcore-12.3.0' '--with-pmix=/opt/shares/easybuild/software/PMIx/4.2.4-GCCcore-12.3.0' '--with-ucx=/opt/shares/easybuild/software/UCX/1.14.1-GCCcore-12.3.0' '--with-ucc=/opt/shares/easybuild/software/UCC/1.2.0-GCCcore-12.3.0' '--without-verbs' 'build_alias=x86_64-pc-linux-gnu' 'host_alias=x86_64-pc-linux-gnu' 'CC=gcc' 'CFLAGS=-O2 -ftree-vectorize -march=native -fno-math-errno' 'LDFLAGS=-L/opt/shares/easybuild/software/UCC/1.2.0-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/UCC/1.2.0-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/PMIx/4.2.4-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/PMIx/4.2.4-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/libfabric/1.18.0-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/libfabric/1.18.0-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/UCX/1.14.1-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/UCX/1.14.1-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/libevent/2.1.12-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/libevent/2.1.12-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/hwloc/2.9.1-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/hwloc/2.9.1-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/zlib/1.2.13-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/zlib/1.2.13-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/Perl/5.36.1-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/Perl/5.36.1-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/pkgconf/1.9.5-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/pkgconf/1.9.5-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/GCCcore/12.3.0/lib64 -L/opt/shares/easybuild/software/GCCcore/12.3.0/lib' 'LIBS=-lm -lpthread' 'CPPFLAGS=-I/opt/shares/easybuild/software/UCC/1.2.0-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/PMIx/4.2.4-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/libfabric/1.18.0-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/UCX/1.14.1-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/libevent/2.1.12-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/hwloc/2.9.1-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/zlib/1.2.13-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/pkgconf/1.9.5-GCCcore-12.3.0/include' 'CXX=g++' 'CXXFLAGS=-O2 -ftree-vectorize -march=native -fno-math-errno' 'FC=gfortran' 'FCFLAGS=-O2 -ftree-vectorize -march=native -fno-math-errno' 'PKG_CONFIG_PATH=/opt/shares/easybuild/software/PMIx/4.2.4-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/libfabric/1.18.0-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/UCX/1.14.1-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/libevent/2.1.12-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/OpenSSL/1.1/lib/pkgconfig:/opt/shares/easybuild/software/hwloc/2.9.1-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/libpciaccess/0.17-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/libxml2/2.11.4-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/XZ/5.4.2-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/numactl/2.0.16-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/pkgconf/1.9.5-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/zlib/1.2.13-GCCcore-12.3.0/lib/pkgconfig' '--no-create' '--no-recursion'
+          MPI extensions: affinity, cuda, pcollreq
+                 MCA btl: smcuda (MCA v2.1.0, API v3.1.0, Component v4.1.5)
+                MCA coll: cuda (MCA v2.1.0, API v2.0.0, Component v4.1.5)

@@ -1,0 +1,38 @@
+Loading OpenMPI/4.1.5-GCC-12.3.0
+  Loading requirement: GCCcore/12.3.0 zlib/1.2.13-GCCcore-12.3.0
+    binutils/2.40-GCCcore-12.3.0 GCC/12.3.0 numactl/2.0.16-GCCcore-12.3.0
+    XZ/5.4.2-GCCcore-12.3.0 libxml2/2.11.4-GCCcore-12.3.0
+    libpciaccess/0.17-GCCcore-12.3.0 hwloc/2.9.1-GCCcore-12.3.0 OpenSSL/1.1
+    libevent/2.1.12-GCCcore-12.3.0 UCX/1.14.1-GCCcore-12.3.0
+    libfabric/1.18.0-GCCcore-12.3.0 PMIx/4.2.4-GCCcore-12.3.0
+    UCC/1.2.0-GCCcore-12.3.0
+gcc (GCC) 12.3.0
+Copyright (C) 2022 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+gcc (GCC) 12.3.0
+Copyright (C) 2022 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+rm -rf bin obj 
+nvcc -c src/my_time_lib.c -o obj/my_time_lib.o -lm -lmpi 
+nvcc -c src/mmio.c -o obj/mmio.o -lm -lmpi 
+nvcc -c src/spmvCPU.c -o obj/spmvCPU.o -lm -lmpi 
+nvcc -c src/spmvGPU.cu -o obj/spmvGPU.o -lm -lmpi  -I../../ -I/opt/shares/cuda/software/CUDA/12.5.0/bin/../include -arch=sm_80 
+nvcc main.cu obj/my_time_lib.o obj/mmio.o obj/spmvCPU.o obj/spmvGPU.o -g -o bin/main  -I../../ -I/opt/shares/cuda/software/CUDA/12.5.0/bin/../include -lm -lmpi  -arch=sm_80
+Process 3 see 4 GPUs.
+Process 1 see 4 GPUs.
+Process 2 see 4 GPUs.
+Process 0 see 4 GPUs.
+Rank 3 uses GPU 3
+Rank 1 uses GPU 1
+Rank 0 uses GPU 0
+filename : /home/titienjacques.marie/del-2/multi-gpu-spmv/1138_bus/1138_bus.mtx 
+Rank 2 uses GPU 2
+does the function work ? 11 
+  Configure command line: '--prefix=/opt/shares/easybuild/software/OpenMPI/4.1.5-GCC-12.3.0' '--build=x86_64-pc-linux-gnu' '--host=x86_64-pc-linux-gnu' '--with-cuda=internal' '--enable-mpirun-prefix-by-default' '--enable-shared' '--with-hwloc=/opt/shares/easybuild/software/hwloc/2.9.1-GCCcore-12.3.0' '--with-libevent=/opt/shares/easybuild/software/libevent/2.1.12-GCCcore-12.3.0' '--with-ofi=/opt/shares/easybuild/software/libfabric/1.18.0-GCCcore-12.3.0' '--with-pmix=/opt/shares/easybuild/software/PMIx/4.2.4-GCCcore-12.3.0' '--with-ucx=/opt/shares/easybuild/software/UCX/1.14.1-GCCcore-12.3.0' '--with-ucc=/opt/shares/easybuild/software/UCC/1.2.0-GCCcore-12.3.0' '--without-verbs' 'build_alias=x86_64-pc-linux-gnu' 'host_alias=x86_64-pc-linux-gnu' 'CC=gcc' 'CFLAGS=-O2 -ftree-vectorize -march=native -fno-math-errno' 'LDFLAGS=-L/opt/shares/easybuild/software/UCC/1.2.0-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/UCC/1.2.0-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/PMIx/4.2.4-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/PMIx/4.2.4-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/libfabric/1.18.0-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/libfabric/1.18.0-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/UCX/1.14.1-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/UCX/1.14.1-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/libevent/2.1.12-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/libevent/2.1.12-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/hwloc/2.9.1-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/hwloc/2.9.1-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/zlib/1.2.13-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/zlib/1.2.13-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/Perl/5.36.1-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/Perl/5.36.1-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/pkgconf/1.9.5-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/pkgconf/1.9.5-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/GCCcore/12.3.0/lib64 -L/opt/shares/easybuild/software/GCCcore/12.3.0/lib' 'LIBS=-lm -lpthread' 'CPPFLAGS=-I/opt/shares/easybuild/software/UCC/1.2.0-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/PMIx/4.2.4-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/libfabric/1.18.0-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/UCX/1.14.1-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/libevent/2.1.12-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/hwloc/2.9.1-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/zlib/1.2.13-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/pkgconf/1.9.5-GCCcore-12.3.0/include' 'CXX=g++' 'CXXFLAGS=-O2 -ftree-vectorize -march=native -fno-math-errno' 'FC=gfortran' 'FCFLAGS=-O2 -ftree-vectorize -march=native -fno-math-errno' 'PKG_CONFIG_PATH=/opt/shares/easybuild/software/PMIx/4.2.4-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/libfabric/1.18.0-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/UCX/1.14.1-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/libevent/2.1.12-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/OpenSSL/1.1/lib/pkgconfig:/opt/shares/easybuild/software/hwloc/2.9.1-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/libpciaccess/0.17-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/libxml2/2.11.4-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/XZ/5.4.2-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/numactl/2.0.16-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/pkgconf/1.9.5-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/zlib/1.2.13-GCCcore-12.3.0/lib/pkgconfig' '--no-create' '--no-recursion'
+          MPI extensions: affinity, cuda, pcollreq
+                 MCA btl: smcuda (MCA v2.1.0, API v3.1.0, Component v4.1.5)
+                MCA coll: cuda (MCA v2.1.0, API v2.0.0, Component v4.1.5)

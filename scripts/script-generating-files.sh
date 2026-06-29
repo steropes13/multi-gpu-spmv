@@ -24,9 +24,11 @@ module load OpenMPI
 module load CUDA/12.5.0
 
 # Print compiler versions
-gcc --version
-mpicc --version
+#gcc --version
+#mpicc --version
 
+VAL=\$(hostname) 
+echo \"host: \$VAL\" 
 
 
 # makefile 
@@ -45,7 +47,7 @@ export OMPI_MCA_opal_cuda_support=true
 #run
 mpirun --mca opal_cuda_support 1 -np $nbGpu $current_dir/bin/main $current_dir/$mName/$mName.mtx
 
-ompi_info | grep -i cuda
+#ompi_info | grep -i cuda
 
 
 

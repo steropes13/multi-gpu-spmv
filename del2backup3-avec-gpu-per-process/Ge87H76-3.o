@@ -1,0 +1,67 @@
+Loading OpenMPI/4.1.5-GCC-12.3.0
+  Loading requirement: GCCcore/12.3.0 zlib/1.2.13-GCCcore-12.3.0
+    binutils/2.40-GCCcore-12.3.0 GCC/12.3.0 numactl/2.0.16-GCCcore-12.3.0
+    XZ/5.4.2-GCCcore-12.3.0 libxml2/2.11.4-GCCcore-12.3.0
+    libpciaccess/0.17-GCCcore-12.3.0 hwloc/2.9.1-GCCcore-12.3.0 OpenSSL/1.1
+    libevent/2.1.12-GCCcore-12.3.0 UCX/1.14.1-GCCcore-12.3.0
+    libfabric/1.18.0-GCCcore-12.3.0 PMIx/4.2.4-GCCcore-12.3.0
+    UCC/1.2.0-GCCcore-12.3.0
+gcc (GCC) 12.3.0
+Copyright (C) 2022 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+gcc (GCC) 12.3.0
+Copyright (C) 2022 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Process 1 see 3 GPUs.
+Process 0 see 3 GPUs.
+Process 2 see 3 GPUs.
+Rank 1 uses GPU 1
+Rank 0 uses GPU 0
+filename : /home/titienjacques.marie/del-2/multi-gpu-spmv/Ge87H76/Ge87H76.mtx 
+Rank 2 uses GPU 2
+does the function work ? 0 
+values of M = 112985, N = 112985, nnz = 7892195 
+[MPI process 0] I am a broadcast receiver. Values : (112985, 112985, 7892195) 
+[MPI process 1] I am a broadcast receiver. Values : (112985, 112985, 7892195) 
+[MPI process 2] I am a broadcast receiver. Values : (112985, 112985, 7892195) 
+[Rank 2] Mean time per iteration : 0.000075 s
+[Rank 2] GFLOPS: 69.76
+[Rank 0] Mean time per iteration : 0.000074 s
+[Rank 0] GFLOPS: 70.65
+[Rank 1] Mean time per iteration : 0.000079 s
+[Rank 1] GFLOPS: 66.68
+[Rank 1] xLocalSize=37662 xExtendedSize=150647
+[Rank 2] xLocalSize=37661 xExtendedSize=150646
+
+=== Global result y (first 10 rows) ===
+  y[0] = 8.972080
+  y[1] = 7.311495
+  y[2] = 4.238526
+  y[3] = 3.806515
+  y[4] = -6.895886
+  y[5] = -6.990792
+  y[6] = -6.071160
+  y[7] = 7.561428
+  y[8] = 2.530572
+  y[9] = 1.961631
+=== Global result y (last 10 rows) ===
+  y[112975] = 8.883158
+  y[112976] = 27.792671
+  y[112977] = -0.161871
+  y[112978] = 12.581397
+  y[112979] = 1.530727
+  y[112980] = 21.613270
+  y[112981] = 10.170918
+  y[112982] = 24.712420
+  y[112983] = 21.279350
+  y[112984] = 23.432341
+M=112985 N=112985 nnz=7892195
+[Rank 0] xLocalSize=37662 xExtendedSize=150647
+  Configure command line: '--prefix=/opt/shares/easybuild/software/OpenMPI/4.1.5-GCC-12.3.0' '--build=x86_64-pc-linux-gnu' '--host=x86_64-pc-linux-gnu' '--with-cuda=internal' '--enable-mpirun-prefix-by-default' '--enable-shared' '--with-hwloc=/opt/shares/easybuild/software/hwloc/2.9.1-GCCcore-12.3.0' '--with-libevent=/opt/shares/easybuild/software/libevent/2.1.12-GCCcore-12.3.0' '--with-ofi=/opt/shares/easybuild/software/libfabric/1.18.0-GCCcore-12.3.0' '--with-pmix=/opt/shares/easybuild/software/PMIx/4.2.4-GCCcore-12.3.0' '--with-ucx=/opt/shares/easybuild/software/UCX/1.14.1-GCCcore-12.3.0' '--with-ucc=/opt/shares/easybuild/software/UCC/1.2.0-GCCcore-12.3.0' '--without-verbs' 'build_alias=x86_64-pc-linux-gnu' 'host_alias=x86_64-pc-linux-gnu' 'CC=gcc' 'CFLAGS=-O2 -ftree-vectorize -march=native -fno-math-errno' 'LDFLAGS=-L/opt/shares/easybuild/software/UCC/1.2.0-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/UCC/1.2.0-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/PMIx/4.2.4-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/PMIx/4.2.4-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/libfabric/1.18.0-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/libfabric/1.18.0-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/UCX/1.14.1-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/UCX/1.14.1-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/libevent/2.1.12-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/libevent/2.1.12-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/hwloc/2.9.1-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/hwloc/2.9.1-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/zlib/1.2.13-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/zlib/1.2.13-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/Perl/5.36.1-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/Perl/5.36.1-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/pkgconf/1.9.5-GCCcore-12.3.0/lib64 -L/opt/shares/easybuild/software/pkgconf/1.9.5-GCCcore-12.3.0/lib -L/opt/shares/easybuild/software/GCCcore/12.3.0/lib64 -L/opt/shares/easybuild/software/GCCcore/12.3.0/lib' 'LIBS=-lm -lpthread' 'CPPFLAGS=-I/opt/shares/easybuild/software/UCC/1.2.0-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/PMIx/4.2.4-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/libfabric/1.18.0-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/UCX/1.14.1-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/libevent/2.1.12-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/hwloc/2.9.1-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/zlib/1.2.13-GCCcore-12.3.0/include -I/opt/shares/easybuild/software/pkgconf/1.9.5-GCCcore-12.3.0/include' 'CXX=g++' 'CXXFLAGS=-O2 -ftree-vectorize -march=native -fno-math-errno' 'FC=gfortran' 'FCFLAGS=-O2 -ftree-vectorize -march=native -fno-math-errno' 'PKG_CONFIG_PATH=/opt/shares/easybuild/software/PMIx/4.2.4-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/libfabric/1.18.0-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/UCX/1.14.1-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/libevent/2.1.12-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/OpenSSL/1.1/lib/pkgconfig:/opt/shares/easybuild/software/hwloc/2.9.1-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/libpciaccess/0.17-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/libxml2/2.11.4-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/XZ/5.4.2-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/numactl/2.0.16-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/pkgconf/1.9.5-GCCcore-12.3.0/lib/pkgconfig:/opt/shares/easybuild/software/zlib/1.2.13-GCCcore-12.3.0/lib/pkgconfig' '--no-create' '--no-recursion'
+          MPI extensions: affinity, cuda, pcollreq
+                 MCA btl: smcuda (MCA v2.1.0, API v3.1.0, Component v4.1.5)
+                MCA coll: cuda (MCA v2.1.0, API v2.0.0, Component v4.1.5)

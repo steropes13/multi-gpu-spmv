@@ -6,9 +6,9 @@
 #SBATCH --error=coo-nvidia.e
 #SBATCH --time=00:05:00
 #SBATCH --nodes=1
-#SBATCH --ntasks=4
+#SBATCH --ntasks=2
 #SBATCH --cpus-per-task=1
-#SBATCH --gres=gpu:4 #can be changed 
+#SBATCH --gres=gpu:2 #can be changed 
 #SBATCH --mem=1G
 
 # Load modules
@@ -34,10 +34,10 @@ mpicc --version
 make clean && make
 
 #for the MPI-cuda device aware 
-export OMPI_MCA_opal_cuda_support=true
+#export OMPI_MCA_opal_cuda_support=true
 
 #run
-mpirun --mca opal_cuda_support 1 -np 4 bin/main ../../del-1/GPU_solution/mtx_matrix/cage15/cage15.mtx
+#mpirun --mca opal_cuda_support 1 -np 2 bin/main ../../del-1/GPU_solution/mtx_matrix/cage15/cage15.mtx
 
 # Run
 #mpirun -np 4 --bind-to none bin/main ../../del-1/GPU_solution/mtx_matrix/nvidia.mtx

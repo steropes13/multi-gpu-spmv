@@ -21,11 +21,8 @@ void printDevProp(cudaDeviceProp devProp)
     printf("Minor revision number:         %d\n",  devProp.minor);
     printf("Name:                          %s\n",  devProp.name);
     printf("  Memory Clock rate:           %.0f Mhz\n", devProp.memoryClockRate * 1e-3f);
-
     printf("  Memory Bus Width:            %d bit\n",devProp.memoryBusWidth);
-
     printf("  Peak Memory Bandwidth:       %7.3f GB/s\n",2.0*devProp.memoryClockRate*(devProp.memoryBusWidth/8)/1.0e6);
-
     printf("  Multiprocessors:             %3d\n",devProp.multiProcessorCount);
     printf("  Maximum number of threads per multiprocessor:  %d\n",devProp.maxThreadsPerMultiProcessor);
     printf("  Maximum number of threads per block:           %d\n",devProp.maxThreadsPerBlock);
@@ -35,7 +32,6 @@ void printDevProp(cudaDeviceProp devProp)
            devProp.maxGridSize[0], devProp.maxGridSize[1],devProp.maxGridSize[2]);
     printf("  Total amount of shared memory per block:       %zu bytes\n", devProp.sharedMemPerBlock);
     return;
-
 }
 
 #define DATATYPE float 
@@ -47,9 +43,6 @@ void printDevProp(cudaDeviceProp devProp)
 //TODO: envoyer des std::vector.data() (pour les pointeurs)
 // dans les scatter pour chaque autres processeus 
 //ici on veut envoyer I,J et Vals. 
-
-
-
 
 // I: Row index 
 // P: Number of processes 
@@ -63,27 +56,23 @@ int main(int argc, char ** argv) {
     // N   : Number of columns 
     // nnz : Number of non-zeros;
 
-
     //MMIO reading matrix 
     int mmioReturn = 0; 
     MM_typecode matcode; 
     char filename[256]; 
     int * row_ptr_mtx; 
-	int * cols_array_mtx; 
-	DATATYPE * vals_array_mtx;
+    int * cols_array_mtx; 
+    DATATYPE * vals_array_mtx;
 
     //COO arrays 
     DATATYPE * vals_array; 
-	int * cols_array;
-	int * rows_array;
+    int * cols_array;
+    int * rows_array;
 
     //initializes MPI 
     int currentRank, commSize; 
     int bufferMtxHeaders[3]; 
     int bufferHeaderSize = (int) sizeof(bufferMtxHeaders)/sizeof(int);
-
-
-
 
     MPI_Init(&argc, &argv); // Initializes the MPI world model
     MPI_Comm_rank(MPI_COMM_WORLD, &currentRank);
@@ -100,69 +89,56 @@ int main(int argc, char ** argv) {
     cudaSetDevice(gpuId); 
     printf("Rank %d uses GPU %d\n", currentRank, gpuId);
 
-
     if (currentRank == 0) //root rank 
     {
-		sprintf(filename, "%s",argv[1]);
-		printf("filename : %s \n",filename);
+        sprintf(filename, "%s",argv[1]);
+        printf("filename : %s \n",filename);
         mmioReturn = mm_read_mtx_crd_sym(filename,&M,&N,&nnz,&row_ptr_mtx,&cols_array_mtx,&vals_array_mtx,&matcode);
         printf("does the function work ? %d \n",mmioReturn);
         if (mmioReturn != 0) return EXIT_FAILURE; 
         printf("values of M = %d, N = %d, nnz = %d \n",M,N,nnz); 
         vals_array = (DATATYPE*) calloc(nnz,sizeof(DATATYPE));
-		cols_array =  (int *) calloc(nnz,sizeof(int));
-		rows_array = (int *) calloc(nnz,sizeof(int));
+        cols_array =  (int *) calloc(nnz,sizeof(int));
+        rows_array = (int *) calloc(nnz,sizeof(int));
         for (int i = 0;i<nnz;i++) {
-			//printf("value %d (%d, %d) : %.2f\n",i,row_ptr_mtx[i],cols_array_mtx[i],vals_array_mtx[i]);
-			cols_array[i] = cols_array_mtx[i]-1; 
-			vals_array[i] = vals_array_mtx[i];
-			rows_array[i] = row_ptr_mtx[i]-1;
-		}
-        	if (!mmioReturn) { 
-			if (cols_array_mtx) free(cols_array_mtx);
-			if (vals_array_mtx) free(vals_array_mtx);
-			if(row_ptr_mtx) free(row_ptr_mtx);
-		}
-
-
+            cols_array[i] = cols_array_mtx[i]-1; 
+            vals_array[i] = vals_array_mtx[i];
+            rows_array[i] = row_ptr_mtx[i]-1;
+        }
+        if (!mmioReturn) { 
+            if (cols_array_mtx) free(cols_array_mtx);
+            if (vals_array_mtx) free(vals_array_mtx);
+            if(row_ptr_mtx) free(row_ptr_mtx);
+        }
         //Sends the header of the mtx file to others processes 
         bufferMtxHeaders[0] = M; 
         bufferMtxHeaders[1] = N; 
         bufferMtxHeaders[2] = nnz; 
-
     }
-    MPI_Bcast(
-            bufferMtxHeaders,
-            bufferHeaderSize,
-            MPI_INT,
-            0,
-            MPI_COMM_WORLD
-    );
 
-    std::vector<int> sendCounts(commSize, 0); //vector of sice comSize filled with 0 
+    MPI_Bcast(bufferMtxHeaders, bufferHeaderSize, MPI_INT, 0, MPI_COMM_WORLD);
+
+    std::vector<int> sendCounts(commSize, 0); //vector of size commSize filled with 0 
     std::vector<int> displs(commSize, 0);
     std::vector<int> I; 
     std::vector<int> J; 
     std::vector<DATATYPE> valVect; 
 
-
-
     M = bufferMtxHeaders[0];
     N = bufferMtxHeaders[1];
     nnz = bufferMtxHeaders[2];
     printf("[MPI process %d] I am a broadcast receiver. Values : (%d, %d, %d) \n", currentRank,M,N,nnz);
+
     //rank 0 prepares the sorted datas per rank owner 
     if (currentRank == 0) {
         //count nnz per rank 
-        for (int k = 0;k<nnz;k++) {
+        for (int k = 0;k<nnz;k++)
             sendCounts[ROLE(rows_array[k],commSize)]++; 
-        }
 
         //computes the offset 
         displs[0] = 0; 
-        for (int r = 1; r < commSize;r++) {
+        for (int r = 1; r < commSize;r++)
             displs[r] = displs[r-1] + sendCounts[r-1]; 
-        }
 
         //fills I,J, valVect in the order (rank 0,1...)
         // They will contain the datas re-organized per rank owner 
@@ -170,43 +146,39 @@ int main(int argc, char ** argv) {
         J.resize(nnz); 
         valVect.resize(nnz); 
 
-        //cursor : how many elements have benn placed for the rank r 
-        // allows us to know were to write the next element for each rank 
+        //cursor : how many elements have been placed for the rank r 
+        // allows us to know where to write the next element for each rank 
         std::vector<int> cursor(commSize,0); 
         int owner = 0; 
         int pos = 0; 
         int index = 0;
         for (index = 0;index<nnz;index++) {
-             // determines which rank is the owner of this row (cyclic)
-             owner = ROLE(rows_array[index],commSize); 
-
-             // writing position: starting of the rank owner position 
-             // + how many have been already written  
-             pos = displs[owner] + cursor[owner]; 
-
-             //place the triplet coo and the correct position 
-             I[pos] = rows_array[index]; //global row  
-             J[pos] = cols_array[index]; //global column
-             valVect[pos] = vals_array[index]; //global value
-
-             //increment the cursor of the rank owner 
-             cursor[owner]++; 
+            // determines which rank is the owner of this row (cyclic)
+            owner = ROLE(rows_array[index],commSize); 
+            // writing position: starting of the rank owner position 
+            // + how many have been already written  
+            pos = displs[owner] + cursor[owner]; 
+            //place the triplet coo at the correct position 
+            I[pos] = rows_array[index]; //global row  
+            J[pos] = cols_array[index]; //global column
+            valVect[pos] = vals_array[index]; //global value
+            //increment the cursor of the rank owner 
+            cursor[owner]++; 
         }
         // free the C origin arrays (replaced by I,J and valVect)
         free(rows_array); 
         free(cols_array); 
         free(vals_array); 
-
     }
+
     //broadcast sendcounts to all the ranks 
     MPI_Bcast(sendCounts.data(), commSize,MPI_INT,0,MPI_COMM_WORLD); 
     int localNnz = sendCounts[currentRank];
 
     //re-compute the displacement of all the ranks 
     displs[0] = 0; 
-    for (int r = 1;r<commSize;r++) {
+    for (int r = 1;r<commSize;r++)
         displs[r] = displs[r-1] + sendCounts[r-1]; 
-    }
 
     //allocate the local buffers 
     std::vector<int> localI(localNnz); 
@@ -220,90 +192,71 @@ int main(int argc, char ** argv) {
     cudaMalloc(&d_localJ,    localNnz * sizeof(int));
     cudaMalloc(&d_localVals, localNnz * sizeof(DATATYPE));
 
-    //scatterv of lines, columns and values 
+    // Barrier before Scatterv to synchronize all ranks before timing
+    MPI_Barrier(MPI_COMM_WORLD);
+    double t_scatter_start = MPI_Wtime();
 
+    //scatterv of lines, columns and values 
     MPI_Scatterv( //for the comments : extracted from mpich.org
         I.data(),          //adress of the buffer
-
         sendCounts.data(), //integer array (of length group size) specifying 
                            //the number of elements to send to each processor
-
-        displs.data(),      //integer array (of length group size). Entry
-                            // i specifies the displacement (relative 
-                            // to sendbuf from which 
-                            // to take the outgoing data to process i
-
-        MPI_INT,            //data type of send buffer elements (handle)
-
-        d_localI,      // number of elements in receive buffer (integer)
-
-        localNnz,           // The number of elements in the receive buffer.
-
-        MPI_INT,            // The type of one receive buffer element.
-
-        0,                  // the rank of the root process
-
-        MPI_COMM_WORLD      // The communicator in which the scatter takes place.
+        displs.data(),     //integer array (of length group size). Entry
+                           // i specifies the displacement (relative 
+                           // to sendbuf from which 
+                           // to take the outgoing data to process i
+        MPI_INT,           //data type of send buffer elements (handle)
+        d_localI,          // address of receive buffer
+        localNnz,          // The number of elements in the receive buffer.
+        MPI_INT,           // The type of one receive buffer element.
+        0,                 // the rank of the root process
+        MPI_COMM_WORLD     // The communicator in which the scatter takes place.
     );
+    MPI_Scatterv(J.data(), sendCounts.data(), displs.data(), MPI_INT, 
+                 d_localJ, localNnz, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Scatterv(valVect.data(), sendCounts.data(), displs.data(), MPI_FLOAT,
+                 d_localVals, localNnz, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-    MPI_Scatterv(
-        J.data(), 
-        sendCounts.data(), 
-        displs.data(),
-        MPI_INT, 
-        d_localJ, 
-        localNnz, 
-        MPI_INT,
-        0,
-        MPI_COMM_WORLD
-    );
-
-    MPI_Scatterv(
-        valVect.data(), 
-        sendCounts.data(), 
-        displs.data(),
-        MPI_FLOAT,  //has to be modified if double type 
-        d_localVals, 
-        localNnz, 
-        MPI_FLOAT,
-        0,
-        MPI_COMM_WORLD
-    );
-
-
-
-
-cudaMemcpy(localI.data(),    d_localI,    localNnz * sizeof(int),   cudaMemcpyDeviceToHost);
-cudaMemcpy(localJ.data(),    d_localJ,    localNnz * sizeof(int),   cudaMemcpyDeviceToHost);
-cudaMemcpy(localVals.data(), d_localVals, localNnz * sizeof(float), cudaMemcpyDeviceToHost);
-
-/*
-for (int r = 0; r < commSize; r++) {
+    // Barrier after Scatterv to get the time of the slowest rank
     MPI_Barrier(MPI_COMM_WORLD);
-    if (currentRank == r) {
-        printf("[Rank %d] received %d non-zeros :\n", currentRank, localNnz);
-        for (int k = 0; k < localNnz; k++) {
-            printf("  nnz[%d] : row=%d col=%d val=%.2f\n",
-                k, localI[k], localJ[k], localVals[k]);
-        }
+    double t_scatter_end = MPI_Wtime();
+    double t_scatter_ms  = (t_scatter_end - t_scatter_start) * 1000.0;
+
+    cudaMemcpy(localI.data(),    d_localI,    localNnz * sizeof(int),      cudaMemcpyDeviceToHost);
+    cudaMemcpy(localJ.data(),    d_localJ,    localNnz * sizeof(int),      cudaMemcpyDeviceToHost);
+    cudaMemcpy(localVals.data(), d_localVals, localNnz * sizeof(DATATYPE), cudaMemcpyDeviceToHost);
+
+    // NNZ stats across all ranks via MPI_Allreduce
+    int globalNnzMin = 0, globalNnzMax = 0;
+    double globalNnzAvg = 0.0;
+    MPI_Allreduce(&localNnz, &globalNnzMin, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(&localNnz, &globalNnzMax, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    long long localNnzLL = localNnz, totalNnz = 0;
+    MPI_Allreduce(&localNnzLL, &totalNnz, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    globalNnzAvg = (double)totalNnz / commSize;
+
+    // === CSR local ===
+    int numberLocalLine = 0;
+    for (int i = 0; i < M; i++)
+        if (ROLE(i, commSize) == currentRank) numberLocalLine++;
+
+    for (int r = 0; r < commSize; r++) {
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (currentRank == r)
+            printf("[Rank %d] localNnz=%d numberLocalLine=%d\n", 
+                   currentRank, localNnz, numberLocalLine);
     }
-}
-*/
-// === CSR local ===
-int numberLocalLine = 0;
-for (int i = 0; i < M; i++)
-    if (ROLE(i, commSize) == currentRank) numberLocalLine++;
 
-std::vector<int> localRowPtr(numberLocalLine + 1, 0);
-for (int k = 0; k < localNnz; k++) {
-    int localRow = localI[k] / commSize;
-    localRowPtr[localRow + 1]++;
-}
-for (int i = 0; i < numberLocalLine; i++)
-    localRowPtr[i + 1] += localRowPtr[i];
+    std::vector<int> localRowPtr(numberLocalLine + 1, 0);
+    for (int k = 0; k < localNnz; k++) {
+        int localRow = localI[k] / commSize;
+        localRowPtr[localRow + 1]++;
+    }
+    for (int i = 0; i < numberLocalLine; i++)
+        localRowPtr[i + 1] += localRowPtr[i];
 
-// === Ghost entries ===
-// Taille portion locale de x
+    // === Ghost entries ===
+    // Taille portion locale de x
     int xLocalSize = 0;
     for (int j = 0; j < N; j++)
         if (ROLE(j, commSize) == currentRank) xLocalSize++;
@@ -312,7 +265,7 @@ for (int i = 0; i < numberLocalLine; i++)
     std::unordered_map<int, int> globalToLocal;
     int idx = 0;
     for (int j = currentRank; j < N; j += commSize)
-        globalToLocal[j] = idx++;                          // owned
+        globalToLocal[j] = idx++; // owned
     // ghosts ajoutés après flatRequest
 
     // Identifier les colonnes nécessaires par rank owner
@@ -347,14 +300,17 @@ for (int i = 0; i < numberLocalLine; i++)
     int totalToServe = rDispls[commSize-1] + recvCounts[commSize-1];
     std::vector<int> colsToServe(totalToServe);
 
+    // Barrier before ghost entries exchange to synchronize all ranks before timing
+    MPI_Barrier(MPI_COMM_WORLD);
+    double t_ghost_start = MPI_Wtime();
+
     // Exchange indices of columns (CPU)
     MPI_Alltoallv(flatRequest.data(),  sendCountsGhost.data(), sDispls.data(), MPI_INT,
                   colsToServe.data(),  recvCounts.data(),      rDispls.data(), MPI_INT,
                   MPI_COMM_WORLD);
 
-    //  GPU alocations 
+    // GPU allocations 
     int xExtendedSize = xLocalSize + (int)flatRequest.size();
-
     int      *d_row_ptr, *d_colIdxRemapped, *d_colsToServe;
     DATATYPE *d_vals, *d_y, *d_xExtended, *d_toSend, *d_xLocalGPU;
     DATATYPE *d_globalY = nullptr;
@@ -368,7 +324,7 @@ for (int i = 0; i < numberLocalLine; i++)
     cudaMalloc(&d_xLocalGPU,      (xLocalSize > 0   ? xLocalSize   : 1) * sizeof(DATATYPE));
     cudaMalloc(&d_colsToServe,    (totalToServe > 0 ? totalToServe : 1) * sizeof(int));
 
-    // Transfers  Host to GPU
+    // Transfers Host to GPU
     cudaMemcpy(d_row_ptr,        localRowPtr.data(),    (numberLocalLine+1) * sizeof(int),      cudaMemcpyHostToDevice);
     cudaMemcpy(d_colIdxRemapped, localJRemapped.data(),  localNnz           * sizeof(int),      cudaMemcpyHostToDevice);
     cudaMemcpy(d_vals,           localVals.data(),        localNnz          * sizeof(DATATYPE), cudaMemcpyHostToDevice);
@@ -393,6 +349,11 @@ for (int i = 0; i < numberLocalLine; i++)
                   d_xExtended + xLocalSize,  sendCountsGhost.data(), sDispls.data(), MPI_FLOAT,
                   MPI_COMM_WORLD);
 
+    // Barrier after ghost entries exchange to get the time of the slowest rank
+    MPI_Barrier(MPI_COMM_WORLD);
+    double t_ghost_end = MPI_Wtime();
+    double t_ghost_ms  = (t_ghost_end - t_ghost_start) * 1000.0;
+
     // Kernel SpMV
     cudaMemset(d_y, 0, numberLocalLine * sizeof(DATATYPE));
 
@@ -402,9 +363,7 @@ for (int i = 0; i < numberLocalLine; i++)
     size_t sharedSize      = warpsPerBlock * 32 * sizeof(DATATYPE);
 
     // Kernel SpMV - Warmup + Measurement
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
+
 
     // Warmup (10 iterations, not measured)
     for (int iter = 0; iter < WARMUP; iter++) {
@@ -412,70 +371,95 @@ for (int i = 0; i < numberLocalLine; i++)
         computeSpmvCSRWarpGPU<<<numBlocks, threadsPerBlock, sharedSize>>>(
             d_y, nullptr, d_colIdxRemapped, d_vals, d_xExtended, localNnz, numberLocalLine, d_row_ptr
         );
-        cudaDeviceSynchronize();
     }
-cudaDeviceSynchronize();
+    // Clean trailing activities before starting exact timing
+    cudaDeviceSynchronize();
 
-    // Measurement (30 iterations)
-    cudaEventRecord(start);
+    // Measurement (30 iterations, cudaEvents isolate kernel time only)
+    float sumTime = 0; 
+    cudaEvent_t start, stop;
+    float milliseconds = 0.0f;
+    float avgTime      = 0.0f; 
+    float totalTime    = 0.0f; 
+    double flops       = 0.0; 
+    double gflops      = 0.0; 
+
     for (int iter = 0; iter < ITERATIONS; iter++) {
+        // Clear d_y inside loop to avoid compounding operations and leverage memory cache properly
         cudaMemset(d_y, 0, numberLocalLine * sizeof(DATATYPE));
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+        cudaEventRecord(start);
         computeSpmvCSRWarpGPU<<<numBlocks, threadsPerBlock, sharedSize>>>(
             d_y, nullptr, d_colIdxRemapped, d_vals, d_xExtended, localNnz, numberLocalLine, d_row_ptr
         );
-        cudaDeviceSynchronize();
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&milliseconds, start, stop);
+        sumTime += milliseconds; 
+        cudaEventDestroy(start);
+        cudaEventDestroy(stop);
 
     }
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
+    avgTime = sumTime/ITERATIONS; 
+    const float avgTimeSeconds = avgTime/1000.0; 
+    
 
-    float milliseconds = 0.0f;
-    float avgTime = 0.0f; 
-    float totalTime = 0.0f; 
-    double flops = 0.0f; 
-    double gflops = 0.0f; 
-    cudaEventElapsedTime(&milliseconds, start, stop);
-    totalTime = milliseconds / 1000.0; // Converts in seconds 
-    avgTime = totalTime / ITERATIONS; //Mean time in seconds
 
-    // Computes the flops 
-    flops = 2.0 * localNnz * ITERATIONS; // 2 FLOPS par nnz (1 multiplication + 1 addition)
-    gflops = flops / (totalTime * 1e9); // Converts in GFLOPS (1e9 FLOPS = 1 GFLOP)
+    
+    gflops = (2.0 * localNnz) / avgTimeSeconds / 1e9; 
 
-    // Print the results for this processus 
-    printf("[Rank %d] Mean time per iteration : %.6f s\n", currentRank, avgTime);
-    //[REPORT]the max time is the time which has to be added to the report (THE SLOWER ONE)
-printf("[Rank %d] GFLOPS: %.2f\n", currentRank, gflops);
-    //[REPORT]the sum has to be done for the total gflops of the programm 
+    // [REPORT] the max time is the time which has to be added to the report (THE SLOWER ONE)
+    printf("[Rank %d] Mean time per iteration : %.6f ms\n", currentRank, avgTime);
+    // [REPORT] the sum has to be done for the total gflops of the program
+    printf("[Rank %d] GFLOPS: %.2f\n", currentRank, gflops);
+
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess)
         printf("[Rank %d] CUDA error: %s\n", currentRank, cudaGetErrorString(err));
 
-    // Print performance per rank
 
-
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
-    // Gatherv CUDA-aware : d_y -> d_globalY
+    // Gatherv CUDA-aware : d_y → d_globalY
     std::vector<int> gatherCounts(commSize, 0);
     std::vector<int> gatherDispls(commSize, 0);
 
     MPI_Allgather(&numberLocalLine, 1, MPI_INT,
                   gatherCounts.data(), 1, MPI_INT, MPI_COMM_WORLD);
-
     for (int r = 1; r < commSize; r++)
         gatherDispls[r] = gatherDispls[r-1] + gatherCounts[r-1];
 
     if (currentRank == 0)
         cudaMalloc(&d_globalY, M * sizeof(DATATYPE));
 
+    // Barrier before Gatherv to synchronize all ranks before timing
+    MPI_Barrier(MPI_COMM_WORLD);
+    double t_gather_start = MPI_Wtime();
+
     MPI_Gatherv(d_y,       numberLocalLine,           MPI_FLOAT,
                 d_globalY, gatherCounts.data(), gatherDispls.data(), MPI_FLOAT,
                 0, MPI_COMM_WORLD);
 
-    // =========================================================
+    // Barrier after Gatherv to get the time of the slowest rank
+    MPI_Barrier(MPI_COMM_WORLD);
+    double t_gather_end = MPI_Wtime();
+    double t_gather_ms  = (t_gather_end - t_gather_start) * 1000.0;
+
+    // CSV output per rank (header printed by rank 0 only)
+    for (int r = 0; r < commSize; r++) {
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (currentRank == r) {
+            if (r == 0)
+                printf("rank;nnz_local;nnz_min;nnz_max;nnz_avg;scatter_ms;ghost_ms;spmv_ms;gather_ms;gflops\n");
+            printf("%d;%d;%d;%d;%.2f;%.3f;%.3f;%.3f;%.3f;%.2f\n",
+                currentRank, localNnz,
+                globalNnzMin, globalNnzMax, globalNnzAvg,
+                t_scatter_ms, t_ghost_ms,
+                avgTime,
+                t_gather_ms, gflops);
+        }
+    }
+
     // Réordonnancement et affichage sur rank 0
-    // =========================================================
     if (currentRank == 0) {
         std::vector<DATATYPE> globalY(M);
         cudaMemcpy(globalY.data(), d_globalY, M * sizeof(DATATYPE), cudaMemcpyDeviceToHost);
@@ -489,23 +473,10 @@ printf("[Rank %d] GFLOPS: %.2f\n", currentRank, gflops);
             cursor[owner]++;
         }
 
-        printf("\n=== Global result y (first 10 rows) ===\n");
-        for (int i = 0; i < 10 && i < M; i++)
-            printf("  y[%d] = %.6f\n", i, globalYOrdered[i]);
-
-        printf("=== Global result y (last 10 rows) ===\n");
-        for (int i = M - 10; i < M; i++)
-            printf("  y[%d] = %.6f\n", i, globalYOrdered[i]);
+        printf("M=%d N=%d nnz=%d\n", M, N, nnz);
     }
 
-    if (currentRank == 0)
-    printf("M=%d N=%d nnz=%d\n", M, N, nnz);
-
-    printf("[Rank %d] xLocalSize=%d xExtendedSize=%d\n", 
-        currentRank, xLocalSize, xExtendedSize);
-    // =========================================================
-    // Libérer GPU
-    // =========================================================
+    // Free GPU
     cudaFree(d_row_ptr);
     cudaFree(d_colIdxRemapped);
     cudaFree(d_vals);
@@ -516,12 +487,10 @@ printf("[Rank %d] GFLOPS: %.2f\n", currentRank, gflops);
     cudaFree(d_colsToServe);
     if (currentRank == 0) cudaFree(d_globalY);
 
-
-//1er Alltoallv : j'envoie les indices que je demande  → sendCounts décrit ce que j'envoie
-//2e Alltoallv  : je renvoie les valeurs demandées     → les rôles sont inversés !
-//sendCounts[r] = combien j'avais demandé à r   = combien r va me renvoyer
-//recvCounts[r] = combien r m'avait demandé     = combien je dois renvoyer à r
-
+    //1er Alltoallv : j'envoie les indices que je demande  → sendCounts décrit ce que j'envoie
+    //2e Alltoallv  : je renvoie les valeurs demandées     → les rôles sont inversés !
+    //sendCounts[r] = combien j'avais demandé à r   = combien r va me renvoyer
+    //recvCounts[r] = combien r m'avait demandé     = combien je dois renvoyer à r
 
     MPI_Finalize(); // Terminates MPI world model.
     return 0; 
