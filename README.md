@@ -1,2 +1,16 @@
 # multi-gpu-spmv
 Multi-GPU Distributed Sparse Matrix–Vector Multiplication (SpMV) with MPI cuda-aware
+In order to get all the sbatch files to try with dataset matrices use this command: 
+```bash
+./scripts/script-generating-files.sh
+```
+You will get in the project repository all the `sbatch-<matrix_name>-<number_of_process>.sh` files and then you can execute them by these steps: 
+1. `sbatch sbatch.sh`: it will clean and execute the makefile
+2. `sbatch sbatch-<matrix_name>-<number_of_process>.sh`: it starts a job called `<matrix_name>-<number_of_process>` and generates an input and output with the format `<matrix_name>-<number_of_process>.o` and `<matrix_name>-<number_of_process>.e`.
+
+To generate all the the jobs at the same time you can use this command : 
+```bash
+for job in *.sh ; do sbatch $job ; done
+```
+
+Be careful, you may not obtain the same reslult as the report if you are not on eduo01: the hostname is specified inside each `.o` file. 
